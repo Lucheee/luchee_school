@@ -3,13 +3,6 @@ from datetime import datetime
 from enum import Enum
 
 
-class CourseName(Enum):
-    MATHS = 'maths'
-    SOCIAL_SCIENCES = 'social_sciences'
-    ENGLISH = 'english'
-    ENGINEERING = 'engineering'
-    ACCOUNTING = 'accounting'
-
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -124,10 +117,10 @@ class Courses(db.Model):
    __tablename__ = 'courses'
 
    id = db.Column(db.Integer(), primary_key = True)
-   course_name = db.Column(db.Enum(CourseName))
+   course_name = db.Column(db.String(20), nullable=False)
    course_code = db.Column(db.String(20), unique=True)
    creditload = db.Column(db.String(60), nullable=False)
-   teacher_id = db.Column(db.Integer(), db.ForeignKey('teachers.id'),nullable=False)
+   teacher = db.Column(db.String(60), nullable=False)
 
 
      
