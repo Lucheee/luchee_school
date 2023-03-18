@@ -1,10 +1,10 @@
-# Student Management Student
+# Student Management System
 
 Note: This is currently under active development
 
 ## Table of Contents
 
-- [Student Management Student](#student-management-student)
+- [Student Management System](#student-management-system)
   - [Table of Contents](#table-of-contents)
   - [Live ( deployed version )](#live--deployed-version-)
   - [Testing Locally](#testing-locally)
@@ -28,7 +28,7 @@ git clone https://github.com/Lucheee/luchee_school.git
 Change directory to the cloned folder
 
 ```console
-cd student_management
+cd luchee_school
 ```
 
 Install necessary dependency to run the project
