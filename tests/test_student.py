@@ -2,7 +2,7 @@ import unittest
 from api import create_app
 from api.config.config import  config_dict
 from api.utils import db
-from api.models.students import Admin, Student
+from api.models.user import Admin, Student
 from flask_jwt_extended import create_access_token
 
 class UserTestCase(unittest.TestCase):
@@ -68,3 +68,5 @@ class UserTestCase(unittest.TestCase):
         assert student.fullname == "Test"
 
         assert response.status_code == 201
+
+
