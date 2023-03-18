@@ -1,7 +1,7 @@
 
 from ..utils import db
 from flask import request
-from ..models.students import Student, Admin, Teacher, User 
+from ..models.students import Student, Admin,User 
 from flask_jwt_extended import  get_jwt_identity, jwt_required  
 from flask_restx import Namespace, Resource, fields
 from http import HTTPStatus

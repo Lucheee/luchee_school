@@ -1,7 +1,7 @@
 from flask import Flask, request, Response, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restx import fields, Namespace, Resource
-from ..models.students import Student, User, Admin, Teacher
+from ..models.students import Student, User, Admin
 from http import HTTPStatus
 from flask_jwt_extended import jwt_required,get_jwt_identity, create_access_token, create_refresh_token, get_jwt,verify_jwt_in_request, unset_jwt_cookies
 from flask_mail import Mail
@@ -193,7 +193,20 @@ class Login(Resource):
             }
 
             return response, HTTPStatus.CREATED
-        
+
+
+@auth_namespace.route('/refresh')
+class Refresh(Resource):
+    @jwt_required(refresh=True)
+    def post(self):
+        """
+            Refresh Access Token
+        """
+        user = get_jwt_identity()
+
+        access_token = create_access_token(identity=user)
+
+        return {'access_token': access_token}, HTTPStatus.OK
 
 @auth_namespace.route('/logout')
 class Logout(Resource):
