@@ -22,7 +22,7 @@ Visit [website](http://olakaycoder1.pythonanywhere.com/)
 Clone the repository
 
 ```console
-git clone https://github.com/olakayCoder1/student_management.git
+git clone https://github.com/Lucheee/luchee_school.git
 ```
 
 Change directory to the cloned folder
