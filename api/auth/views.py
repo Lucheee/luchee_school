@@ -37,7 +37,7 @@ user_model = auth_namespace.model(
     'User', {
         'fullname': fields.String(required=True, description="A fullname"),
         'email': fields.String(required=True, description="An email"),
-        'password_hash': fields.String(required=True, description="A password")
+        'password': fields.String(required=True, description="A password")
         
     }
 
@@ -157,6 +157,10 @@ class RegisterStudent(Resource):
 
         matric ='ALT' + keywords(6)
 
+        print('**'*30)
+        print(data.get('password'))
+        print('***'*30)
+
         new_user = Student(
             fullname = data.get('fullname'),
             email = data.get('email'),
@@ -165,6 +169,7 @@ class RegisterStudent(Resource):
             matric_no = matric
         )
 
+        
         new_user.save()
 
         

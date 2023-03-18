@@ -74,8 +74,6 @@ class UserTestCase(unittest.TestCase):
       # Retrieve all admins
         response = self.client.get('/students/all_admins', headers=headers)
 
-        print (json.loads(response))
-
         assert response.status_code == 200
 
-        assert response.json == []       
+        assert len(response.json) == 1      
