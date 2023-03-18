@@ -1,7 +1,9 @@
 from flask import Flask
 from .config.config import config_dict
 from .utils import db
-from .models.students import Student, User, Admin, StudentCourse, Courses, Grades
+from .models.user import Student, User, Admin
+from .models.courses import StudentCourse, Courses
+from .models.grades import Grades
 from .auth.views import auth_namespace
 from .students.views import students_namespace
 from .courses.views import courses_namespace
@@ -9,9 +11,15 @@ from .grades.views import grades_namespace
 from flask_restx import Api
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
+from dotenv import load_dotenv
+from werkzeug.exceptions import MethodNotAllowed, NotFound 
+
+
 
 def create_app(config=config_dict['dev']):
     app = Flask(__name__)
+
+    load_dotenv()
 
     app.config.from_object(config)
 
@@ -43,7 +51,15 @@ def create_app(config=config_dict['dev']):
     api.add_namespace(courses_namespace)
     api.add_namespace(grades_namespace)
     
+    @api.errorhandler(NotFound)
+    def not_found(error):
+        return {"error": "Not Found"}, 404
 
+    @api.errorhandler(MethodNotAllowed)
+    def method_not_allowed(error):
+        return {"error": "Method Not Allowed"}, 404
+    
+    
     @app.shell_context_processor
     def make_shell_context():
         return {

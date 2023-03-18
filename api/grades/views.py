@@ -1,6 +1,8 @@
 from ..utils import db
 from flask import request
-from ..models.students import Student,Courses, StudentCourse, Grades
+from ..models.user import Student
+from ..models.courses import Courses, StudentCourse
+from ..models.grades import Grades
 from flask_jwt_extended import  get_jwt_identity, jwt_required  
 from flask_restx import Namespace, Resource, fields,marshal
 from http import HTTPStatus
@@ -9,6 +11,8 @@ from ..auth.views import admin_required
 
 grades_namespace = Namespace('grades', description='Namespace for Grades')
 
+
+#serializer to add aggregate scores to a student course 
 grades_model = grades_namespace.model(
     'Grades of student', {
     'student_id' : fields.Integer(description="Student ID"),
@@ -20,7 +24,15 @@ grades_model = grades_namespace.model(
 )
 
 
+#serializer to update student grades/aggregate
+update_grades_model = grades_namespace.model(
+    'Update Grades', {
+    'aggregate': fields.Float(description='Score of students')
+    }
+)
 
+
+#function to get the  equivalent letter grade by getting the aggregate score
 def get_grade(aggregate):
     """ Convert a score to corresponding grade """
     if aggregate <= 100 and aggregate > 89:
@@ -39,6 +51,7 @@ def get_grade(aggregate):
         return 'F'
 
 
+#function to get a gpa of a student using the grades of the student
 def convert_grade_to_gpa(grade):
     """Convert a grade to the corresponding point value """
     if grade == 'A':
@@ -54,7 +67,7 @@ def convert_grade_to_gpa(grade):
     
 
 
-
+#route to add scores to the students course
 @grades_namespace.route('/course/add_score')
 class AddScore(Resource):
 
@@ -103,6 +116,62 @@ class AddScore(Resource):
         return {'message': 'The student is not registered for this course'}, HTTPStatus.BAD_REQUEST
     
 
+
+#route to update a particular grade for student
+@grades_namespace.route('/grades/<int:grade_id>')
+class UpdateDeleteGrade(Resource):
+
+    @grades_namespace.expect(update_grades_model)
+    @grades_namespace.doc(
+        description = "Update a Grade - Admins Only",
+        params = {
+            'grade_id': "The Grade's ID"
+        }
+    )
+    @admin_required()
+    def put(self, grade_id):
+        """
+            Update a Grade - Admins Only
+        """
+        data = grades_namespace.payload
+
+        grade = Grades.get_by_id(grade_id)
+        
+        grade.aggregate = data['aggregate']
+        grade.grade = get_grade(data['aggregate'])
+        
+        db.session.commit()
+
+        grade_resp = {}
+        grade_resp['grade_id'] = grade.id
+        grade_resp['student_id'] = grade.student_id
+        grade_resp['course_id'] = grade.course_id
+        grade_resp['aggregate'] = grade.aggregate
+        grade_resp['grade'] = grade.grade
+
+        return grade_resp, HTTPStatus.OK
+    
+
+    #endpoint for deleting a particular grade
+    @grades_namespace.doc(
+        description = "Delete a Grade - Admins Only",
+        params = {
+            'grade_id': "The Grade's ID"
+        }
+    )
+    @admin_required()
+    def delete(self, grade_id):
+        """
+            Delete a Grade - Admins Only
+        """
+        grade = Grades.get_by_id(grade_id)
+        
+        grade.delete()
+
+        return {"message": "Grade Successfully Deleted"}, HTTPStatus.OK
+    
+
+#route for getting the gpa of a student
 @grades_namespace.route('/<int:student_id>/gpa')
 class StudentGPAView(Resource):
 
@@ -117,6 +186,7 @@ class StudentGPAView(Resource):
         total_gpa = 0
             
         for course in courses:
+                #to check for the grades of student
                 grade = Grades.query.filter_by(
                         student_id=student_id, course_id=course.id
                     ).first()
@@ -131,10 +201,12 @@ class StudentGPAView(Resource):
 
                 return {"message": f"{student.fullname}'s CGPA is {round_cgpa}"}, HTTPStatus.OK
         
+
+#route to get a particular student grades      
 @grades_namespace.route('/<int:student_id>/grades')
 class GetStudentGrades(Resource):
     @grades_namespace.doc(
-        description = "Retrieve a Student's Grades - Admins or Specific Student Only",
+        description = "Retrieve a Student's Grades - Admins",
         params = {
             'student_id': "The Student's ID"
         }
@@ -171,7 +243,7 @@ class GetStudentGrades(Resource):
                 
                 resp.append(grade_resp)
             
-                return resp, HTTPStatus.OK
+        return resp, HTTPStatus.OK
         
        
     

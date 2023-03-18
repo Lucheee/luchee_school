@@ -1,14 +1,12 @@
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restx import fields, Namespace, Resource
-from ..models.students import Student, User, Admin
+from ..models.user import Student, User, Admin
 from http import HTTPStatus
 from flask_jwt_extended import jwt_required,get_jwt_identity, create_access_token, create_refresh_token, get_jwt,verify_jwt_in_request, unset_jwt_cookies
-from flask_mail import Mail
 from functools import wraps
 import secrets
 import string
-from email_validator import validate_email, EmailNotValidError
 from ..utils import db
 
 
@@ -17,7 +15,7 @@ from ..utils import db
 auth_namespace = Namespace('auth', description='Namespace for Authentication')
 
 
-#serializer for logging in a user
+#serializer for logging in a user(Admin)
 login_model = auth_namespace.model (
  'Login', {
      'email' : fields.String(required=True, description="An email"),
@@ -34,7 +32,7 @@ signin_model = auth_namespace.model (
    }
 
  )
-#serializer for creating a user
+#serializer for creating any user(Admin,Student)
 user_model = auth_namespace.model(
     'User', {
         'fullname': fields.String(required=True, description="A fullname"),
@@ -57,7 +55,44 @@ register_model = auth_namespace.model(
     }
 )
 
-#function/command to generate random ids
+
+
+#function to get the usertype of a user to be used in the admin required() function below
+def get_usertype(id):
+    """ Get the type a user belong 
+    param:
+        id : user id
+    """
+    user = User.query.filter_by(id=id).first()
+    if user:
+        return user.usertype
+    return None
+
+
+#function to restrict access to only admin       
+def admin_required():
+    """
+    A decorator to protect an endpoint with JSON Web Tokens.
+
+    Any route decorated with this will require a user type of admin  to be present in the
+    request before the endpoint can be called.
+    """
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args,**kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+            print(claims)
+            if get_usertype(claims['sub']) == 'admin':
+                return fn(*args,**kwargs)
+            return jsonify({'msg':"Admin only!"}) , HTTPStatus.UNAUTHORIZED
+        return decorator
+    return wrapper     
+
+
+
+
+#function/command to generate random ids e.g admin hostname(HST@12345)
 def random_char(length):
     """ Generate a random string 
     param:
@@ -66,11 +101,14 @@ def random_char(length):
     return ''.join(secrets.choice(alphabet) for i in range(length))
 
 
-
+#route to register an admin
 @auth_namespace.route('/register/admin')
 class RegisterAdmin(Resource):
     @auth_namespace.expect(user_model)
     @auth_namespace.marshal_with(register_model)
+    @auth_namespace.doc(
+        description = "Register or create an admin"
+    )
     def post(self):
         """
             Register an Admin 
@@ -94,7 +132,7 @@ class RegisterAdmin(Resource):
     
     
 
-#function to generate student matric number
+#function to generate student matric number e.g ALT12345
 def keywords(length):
     """ Generate a random string 
     param:
@@ -103,13 +141,16 @@ def keywords(length):
     return ''.join(secrets.choice(alphabet) for i in range(length))
 
 
-
+#route for students to register
 @auth_namespace.route('/register/student')
 class RegisterStudent(Resource):
     @auth_namespace.expect(user_model)
+    @auth_namespace.doc(
+        description = "register a student"
+    )
     def post(self):
         """
-            Register an Admin 
+            Register a student 
         """
 
         data = request.get_json()
@@ -135,43 +176,15 @@ class RegisterStudent(Resource):
         
         return response, HTTPStatus.CREATED 
     
-#function to get the usertype of a user to be used for admin required function
-
-def get_usertype(id):
-    """ Get the type a user belong 
-    param:
-        id : user id
-    """
-    user = User.query.filter_by(id=id).first()
-    if user:
-        return user.usertype
-    return None
 
 
- #function to restrict access to only admin       
-def admin_required():
-    """
-    A decorator to protect an endpoint with JSON Web Tokens.
-
-    Any route decorated with this will require a user type of admin  to be present in the
-    request before the endpoint can be called.
-    """
-    def wrapper(fn):
-        @wraps(fn)
-        def decorator(*args,**kwargs):
-            verify_jwt_in_request()
-            claims = get_jwt()
-            print(claims)
-            if get_usertype(claims['sub']) == 'admin':
-                return fn(*args,**kwargs)
-            return jsonify({'msg':"Admin only!"}) , HTTPStatus.UNAUTHORIZED
-        return decorator
-    return wrapper     
-
-
+#route to log in any user(Admin or Student)
 @auth_namespace.route('/login')
 class Login(Resource):
     @auth_namespace.expect(login_model)
+    @auth_namespace.doc(
+        description="login any user"
+    )
     def post(self):
         """
             Generate JWT Token
@@ -195,6 +208,7 @@ class Login(Resource):
             return response, HTTPStatus.CREATED
 
 
+
 @auth_namespace.route('/refresh')
 class Refresh(Resource):
     @jwt_required(refresh=True)
@@ -207,6 +221,8 @@ class Refresh(Resource):
         access_token = create_access_token(identity=user)
 
         return {'access_token': access_token}, HTTPStatus.OK
+
+
 
 @auth_namespace.route('/logout')
 class Logout(Resource):

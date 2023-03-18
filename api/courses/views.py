@@ -1,15 +1,16 @@
-
 from ..utils import db
-from flask import request
-from ..models.students import Student,Courses, StudentCourse
-from flask_jwt_extended import  get_jwt_identity, jwt_required  
-from flask_restx import Namespace, Resource, fields,marshal
+from ..models.user import Student
+from ..models.courses import Courses, StudentCourse 
+from flask_restx import Namespace, Resource, fields
 from http import HTTPStatus
 from ..auth.views import admin_required
 
 
 courses_namespace = Namespace('courses', description='Namespace for Courses')
 
+
+
+#serializer for registering a course
 courses_model = courses_namespace.model(
     'Registration of courses', {
     'id' : fields.Integer(description="course_id"),
@@ -22,14 +23,9 @@ courses_model = courses_namespace.model(
 }
 )
 
-studentcourse_model = courses_namespace.model(
-    'Get Student Course', {
-    'course_id' : fields.Integer(required=True, description='course_id'),
-    'student_id' : fields.Integer(requird=True, description='student ID'),
-    'date_registered' : fields.DateTime(description='date registered for a course')
-    }
-)
 
+
+#route to create a new course by only an admin
 @courses_namespace.route('/create_course')
 class CreateCourse(Resource):
 
@@ -49,7 +45,7 @@ class CreateCourse(Resource):
 
         data = courses_namespace.payload
 
-        # Check if course already exists
+        # to check if a course already exists
         course = Courses.query.filter_by(course_name=data['course_name']).first()
         if course:
             return {"message": "Course Already Exists"}, HTTPStatus.CONFLICT
@@ -69,6 +65,7 @@ class CreateCourse(Resource):
         return {'message': 'Sucessfully created'}, HTTPStatus.CREATED
 
 
+#route to update a course 
 @courses_namespace.route('/<int:course_id>')
 class UpdateCourse(Resource):
 
@@ -99,7 +96,7 @@ class UpdateCourse(Resource):
 
         return course, HTTPStatus.OK
     
-
+#delete a course
     @courses_namespace.doc(
         description = "Delete a Course by ID - Admins Only",
         params = {
@@ -118,60 +115,16 @@ class UpdateCourse(Resource):
         return {"message": "Course Successfully Deleted"}, HTTPStatus.OK
 
 
-@courses_namespace.route('/<int:course_id>/register/')
-class RegisterStudentCourse(Resource):
-    @courses_namespace.doc(
-        description="This endpoint allows a student register for a course"
-    )
+
     
-    @jwt_required()
-    def post(self,course_id):
-        """
-        Register for a course
-
-        """  
-
-        active_user = get_jwt_identity()
-        user = Student.query.filter_by(id=active_user).first()
-
-        if user:
-            course = Courses.get_by_id(course_id)
-            student = Student.get_by_id(user.id)
-
-            if course:
-            #check if student has registered for the course before
-                get_student_in_course = StudentCourse.query.filter_by(student_id=student.id, course_id=course.id).first()
-                if get_student_in_course:
-                  return {
-                    'message':'Course has already been registered'
-                    } , HTTPStatus.OK
-                 # Register the student to the course
-                add_student_to_course = StudentCourse(
-                student_id=student.id, 
-                course_id=course.id
-                
-                )
-      
-                add_student_to_course.save()
-
-                course_student_resp = {}
-                course_student_resp['course_id'] = add_student_to_course.course_id
-                course_student_resp['course_name'] = course.course_name
-                course_student_resp['course_teacher'] = course.teacher
-                course_student_resp['student_id'] = add_student_to_course.student_id
-                course_student_resp['student_full_name'] = student.fullname
-                course_student_resp['student_matric_no'] = student.matric_no
-                return course_student_resp, HTTPStatus.CREATED
-        
-            return {'message': 'Course does not exist'} , HTTPStatus.NOT_FOUND
-        
-        return {'message' : 'You are not allowed'} , HTTPStatus.UNAUTHORIZED
-    
-        
+#route to get all courses created     
 @courses_namespace.route('/all-courses') 
 class CoursesList(Resource):
 
     @courses_namespace.marshal_with(courses_model)
+    @courses_namespace.doc(
+        description="endpont for getting all courses created by the admin"
+    )
     @admin_required()
     def get(self):
         """
@@ -182,33 +135,14 @@ class CoursesList(Resource):
         course = Courses.query.all()
         return course, HTTPStatus.OK
 
-@courses_namespace.route('/mycourses')
-class StudentCoursesList(Resource):
+ 
 
-    @courses_namespace.marshal_with(studentcourse_model)
-    @jwt_required()
-    def get(self):
-        """
-        Retrieve a student courses
-        """ 
-
-        active_user = get_jwt_identity()
-        user = Student.query.filter_by(id=active_user).first()
-
-        if user:    
-         courses = StudentCourse.query.all()
-         
-       
-         return courses, HTTPStatus.CREATED
-           
-        return {'message':'You can not access this page'}, HTTPStatus.UNAUTHORIZED 
-
-
+#route to get all students registered for a particular course
 @courses_namespace.route('/<int:course_id>/students')
 class GetAllCourseStudents(Resource):
 
     @courses_namespace.doc(
-        description = "Get all Students Enrolled for a Course - Admins Only",
+        description = "Get all Students Registered for a Course - Admins Only",
         params = {
             'course_id': "The Course's ID"
         }
@@ -218,8 +152,11 @@ class GetAllCourseStudents(Resource):
         """
             Get all Students Enrolled for a Course - Admins Only
         """
-        students = StudentCourse.get_reg_students_by(course_id)
+        students = StudentCourse.get_reg_students_by(course_id) 
         resp = []
+                
+        #an alternative to using marshal with if your output in insomia keeps returning null
+
 
         for student in students:
             student_resp = {}
@@ -232,6 +169,7 @@ class GetAllCourseStudents(Resource):
         return resp, HTTPStatus.OK     
         
 
+#route for get all courses registered by a particular student
 @courses_namespace.route('/<int:student_id>/courses')
 class GetStudentCourses(Resource):
 
@@ -248,14 +186,14 @@ class GetStudentCourses(Resource):
             Retrieve a Student's Courses - Admins or Specific Student Only
         """
             
-        courses = StudentCourse.get_student_courses_by(student_id)
+        courses = StudentCourse.get_student_courses_by(student_id) #note that get_student_courses_by function is already created in the StudentCourse tables.
         
 
         return courses, HTTPStatus.OK
 
     
     
-    
+#route to delete a student from a course    
 @courses_namespace.route('/delete-reg-student/<int:course_id>/<int:student_id>') 
 class DeleteRegStudent(Resource):   
      @courses_namespace.doc(

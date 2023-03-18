@@ -1,7 +1,7 @@
 
 from ..utils import db
 from flask import request
-from ..models.students import Student, Admin,User 
+from ..models.user import Student, Admin,User 
 from flask_jwt_extended import  get_jwt_identity, jwt_required  
 from flask_restx import Namespace, Resource, fields
 from http import HTTPStatus
@@ -54,6 +54,8 @@ class RetrieveStudent(Resource):
         """
         Retrieve a student 
         """
+
+        #check if student is a student
         student = Student.query.filter_by(id=student_id).first()
         if not student:
             return {'message':'Student does not exist'}, HTTPStatus.NOT_FOUND
@@ -62,7 +64,7 @@ class RetrieveStudent(Resource):
 
 #Note, you can just query the User table and filter by user_id to get all users(students, admin, teachers) instead of getting them individually.
 
-#route to get all admin by admin only
+#route to get all admins by admin only
 @students_namespace.route('/all_admins')
 class GetAdmins(Resource):
 
@@ -77,6 +79,7 @@ class GetAdmins(Resource):
         """
         admin = Admin.query.all()
         return admin, HTTPStatus.OK
+
 
 #route to update student data
 @students_namespace.route('/update')
@@ -112,7 +115,7 @@ class UpdateStudent(Resource):
             return user, HTTPStatus.OK
             
             
- #route to delete student data to be accessed by admin only
+ #route to delete student or admin data to be accessed by admin only
 @students_namespace.route('/delete/<int:user_id>')
 class Delete(Resource):
     @students_namespace.doc(
@@ -127,11 +130,7 @@ class Delete(Resource):
         
         user = User.get_by_id(id=user_id)
 
-        user.delete()
-
-        #active_student = get_jwt_identity() 
-        #    print(active_student)
-          #  user = User.query.filter_by(id=active_student).first() 
+        user.delete() 
 
         return {"message": "User Deleted Successfully"}, HTTPStatus.OK
         
